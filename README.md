@@ -2,7 +2,7 @@
 
 In this repo you can find basic guidelines and code to perform the most common statistical analysis you will need for your clinical data.
 
-Start from [here]()
+Start from [here](ClinicalDataAnalysis.html)
 
 You can read more about our research work at http://www.testalab.eu/bibliography/
 
