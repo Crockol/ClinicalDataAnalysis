@@ -1,0 +1,248 @@
+---
+title: "Clinical Data Analysis with R. First classes"
+date: 'Date: `r format(Sys.Date(), "%B %d, %Y")`'
+author: Nicolò Caporale
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        collapsed: true
+        theme: united
+        highlight: tango
+---
+
+
+Ciao NAYY!!
+
+***
+
+# Lecture 1
+The most important reason why Rmd is useful is because you can keep track of all your analysis, thus easily share and reproduce them.
+
+
+
+## SetUp
+Ok, here we start, in this first chunck of code we load the libraries that contain the functions that will facilitate our work later
+```{r,  collapse=TRUE, message=FALSE}
+# install.packages("Hmisc")
+# install.packages("tidyverse")
+# install.packages("readxl")
+# install.packages("ggplot2")
+library(Hmisc)
+library(tidyverse)
+library(readxl)
+```
+
+
+***
+
+## Data upload 
+
+```{r}
+data <-  read_excel("DataTest.xlsx",sheet = "Foglio1")
+```
+
+## check your data
+```{r}
+dim(data)
+colnames(data)
+head(rownames(data))
+head(data$ID)
+data$Column3
+head(data$Column1)
+tail(data$Column2)
+class(data)
+data$Column1
+class(data$ID)
+```
+
+
+## summary statistics
+This command makes the summary statistics for the object of your interest
+
+```{r}
+summary(data)
+```
+
+
+***
+
+# Lecture 2
+
+## Scatterplot
+### Outliers
+
+The first kind of useful plot for looking at your data is a scatterplot between 2 numeric columns. This allows you first of all to check if you have outliers that you would like to exclude from your analysis:
+
+```{r}
+ggplot(data, aes(x=Column8, y=Column3)) + geom_point()
+ggplot(data, aes(x=Column8, y=Column4)) + geom_point()
+ggplot(data, aes(x=Column8, y=Column5)) + geom_point()
+ggplot(data, aes(x=Column8, y=Column6)) + geom_point()
+ggplot(data, aes(x=Column8, y=Column7)) + geom_point()
+```
+
+
+
+The concept of outliers is dependent on the nature of your dataset and the best way to remove them is after a carefull observation of distributions of values in your datasets.
+As a general rule, however you can use the boxplot function in R that by default considers as outliers the values outside 1.5 times the interquartile range above the upper quartile and bellow the lower quartile.
+
+
+You can see them for each column, plotted as circles, or print their value.
+```{r}
+boxplot(data$Column8)
+boxplot(data$Column8, plot = F)$out
+
+boxplot(data$Column3)
+boxplot(data$Column3, plot = F)$out
+```
+
+
+
+If you want you can remove them for specific analysis
+```{r}
+dataFiltered <- data
+dataFiltered$Column3[which(data$Column3==0)] <- NA
+dataFiltered$Column8[which(data$Column8 >= 3.66)] <- NA
+
+ggplot(dataFiltered, aes(x=Column8, y=Column3)) + geom_point()
+```
+
+Here you can read more: 
+https://towardsdatascience.com/understanding-boxplots-5e2df7bcbd51
+
+### Correlations
+
+As a next step, scatterplots between numeric columns allow you to check if there is a positive (dots along the 45 degree diagonal)
+like this that is the perfect correlation because it is 1 column plotted against itself
+
+```{r}
+ggplot(data, aes(x=Column8, y=Column8)) + geom_point()
+```
+
+or negative (dots along the -45 degree diagonal) correlation between the 2.
+like this that is 1 column plotted against its reciprocal
+
+```{r}
+ggplot(data, aes(x=Column8, y=1/Column8)) + geom_point()
+```
+
+In our case there is no correlation between Column 8 and Column 3
+
+```{r}
+ggplot(dataFiltered, aes(x=Column8, y=Column3, color=Column1)) + geom_point()
+```
+
+### Regression
+
+Moreover if you want to have a quantitative estimation of the level of correlation between 2 numeric columns, you can run the "cor" function, which in this case confirms very low values for all the methods 
+(perfect positive correlation is 1, perfect negative correlation is -1)
+```{r}
+cor(x = data$Column8, y = data$Column3,method =  "pearson")
+cor(x = data$Column8, y = data$Column3,method =  "kendall")
+cor(x = data$Column8, y = data$Column3,method =  "spearman")
+```
+(perfect positive correlation is 1, perfect negative correlation is -1)
+```{r}
+cor(x = data$Column8, y = data$Column8)
+cor(x = data$Column8, y = 1/data$Column8)
+```
+
+or perform a linear regression, which inthis case confirms that there is no line that fits on the distribution of our values
+
+```{r} 
+dataFiltered$pred <- predict(lm(Column8 ~ Column3 , data = dataFiltered,na.action = na.exclude))
+ggplot(dataFiltered, aes(x =Column8, y = Column3, color=Column1)) +
+  geom_point() + geom_line(aes(y = pred))  
+```
+
+example of a perfect case
+
+```{r} 
+dataFiltered$test <- dataFiltered$Column8+1
+dataFiltered$pred <- predict(lm(Column8 ~ test , data = dataFiltered,na.action = na.exclude))
+ggplot(dataFiltered, aes(x =Column8, y = Column8, color=Column1)) +
+  geom_point() + geom_line(aes(y = pred))  
+```
+
+You can read more here
+http://r-statistics.co/Linear-Regression.html
+
+
+
+# Lecture 3
+
+## Violin plots
+After the analysis of numeric colums, the next immediate step is to explore the distribution of numeric values across different groups. This means that we want to see violin plots (or box plot but violin are better for distributions) that will show us the distribution of the values in numeric columns between the values in categorical columns.
+
+```{r}
+ggplot(data, aes(x= Column1 ,y = Column3)) +
+  geom_violin()
+```
+
+Here we immediately see the 0 value we previously identified that has an impact on only 1 of the 2 groups, so we use the filtered dataset:
+
+```{r}
+ggplot(dataFiltered, aes(x= Column1 ,y = Column3)) +
+  geom_violin()
+```
+
+Moreover the violin plot function also allow us to directly see the mean values and the standard deviations for each group.
+
+```{r}
+ggplot(dataFiltered, aes(x= Column1 ,y = Column3)) +
+  geom_violin(trim=FALSE) + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2 )
+```
+
+## Test significance
+Finally you can test if the difference between the 2 group is significant with a T test.
+So we first verify that our data are normally distributed:
+```{r}
+with(dataFiltered, shapiro.test(Column3[Column1 == "A"]))
+```
+
+Since the p value is > 0.05 we can assume normality, thus we can perform the F test
+```{r}
+res.ftest <- var.test(Column3 ~ Column1, data = dataFiltered)
+res.ftest
+```
+The p value > 0.05 in this case tells us that there is no significant difference between the variances of the two sets of data. So we can use the T test
+```{r}
+res <- t.test(Column3 ~ Column1, data = dataFiltered, var.equal = TRUE)
+res
+```
+The p value > 0.05 in this case tells us that there is no significant difference between the 2 groups we were comparing
+
+
+You can read more, including which test is more appropriate in each situation, here:
+http://www.sthda.com/english/wiki/comparing-means-in-r
+
+# Summary guidelines:
+
+To recap, for a basic but very insightful analysis of your data, you start with a proper understanding of the dataframe in front of you, making sure that columns and rows are in place and knowing what kind of data are stored within each of them. 
+(summary statistics couldn be the first quantitative look at your dataset)
+
+Once you know those info, you can start asking yourself the interesting questions for your analysis.
+
+You could start looking at your numeric columns with boxplot and deciding how many outliers you have and if you want to remove them.
+
+Then you can compare your numeric columns and analysing if you have correlation among them (with scatterplots, correlation functions and linear regression).
+
+Finally you can analyse each numeric columns between the groups of your categorical columns, looking at distribution with violin plots and testing for the significance of the defferences that you may observe.
+
+Just repeating those those simple steps on the different columns of you dataset, you will already have a great insight into your data that you are now ready to publish and share with the scientific comunity!! to then move to the next data exploration!!
+
+# Contact
+If you enjoyed the course, you can read more about our work at http://www.testalab.eu/bibliography/
+
+***
+
+If you have questions, requests, you can contact me at nicolo.caporale@gmail.com
+
+#### Saving
+
+```{r SaveSession}
+SessionInfo <- sessionInfo()
+Date <- date()
+```
